@@ -536,8 +536,8 @@ predictive-maintenance-mlops/
 
 The following enhancements are planned as the project evolves toward a more production-style MLOps architecture:
 
-- [ ] GitHub Actions CI pipeline
-- [ ] Automated testing on every push
+- [x] GitHub Actions CI pipeline
+- [x] Automated testing on every push
 - [ ] Automated Docker image build
 - [ ] Push Docker image to Amazon ECR
 - [ ] AWS deployment

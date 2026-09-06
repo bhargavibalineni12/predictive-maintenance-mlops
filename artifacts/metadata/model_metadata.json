@@ -1,0 +1,28 @@
+{
+    "model_name": "RandomForestClassifier",
+    "model_version": "1.0",
+    "threshold": 0.3723840180220012,
+    "features": [
+        "Engine rpm",
+        "Lub oil pressure",
+        "Fuel pressure",
+        "Coolant pressure",
+        "lub oil temp",
+        "Coolant temp"
+    ],
+    "hyperparameters": {
+        "n_estimators": 200,
+        "max_depth": 10,
+        "min_samples_split": 5,
+        "min_samples_leaf": 1,
+        "random_state": 42
+    },
+    "final_test_metrics": {
+        "accuracy": 0.6503711287432813,
+        "precision": 0.6481231433972455,
+        "recall": 0.97442143727162,
+        "f1": 0.7784625364904314,
+        "roc_auc": 0.6989005143154701,
+        "average_precision": 0.7981252936591725
+    }
+}

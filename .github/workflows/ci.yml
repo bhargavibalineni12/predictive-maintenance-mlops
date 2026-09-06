@@ -30,3 +30,6 @@ jobs:
 
       - name: Run automated tests
         run: python -m pytest tests/ -v
+
+      - name: Build Docker image
+        run: docker build -f docker/Dockerfile -t predictive-maintenance-api .

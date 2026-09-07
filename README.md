@@ -777,6 +777,36 @@ predictive-maintenance-mlops/
 - [x] Structured JSON drift report generation
 - [x] Drift monitoring automated tests
 
+---
+
+## AWS Deployment Evidence
+
+The model was containerized with Docker, published to Amazon ECR through GitHub Actions using OIDC authentication, and successfully deployed to an Amazon SageMaker Serverless endpoint.
+
+> **Cost-control note:** Billable cloud resources are cleaned up after deployment validation to avoid unnecessary ongoing AWS charges. Deployment evidence is retained in this repository.
+
+### SageMaker Serverless Endpoint
+
+![SageMaker Endpoint InService](docs/images/sagemaker-endpoint-inservice.png)
+
+### Serverless Inference Configuration
+
+![SageMaker Serverless Configuration](docs/images/sagemaker-serverless-config.png)
+
+### Successful Cloud Inference
+
+![SageMaker Inference Response](docs/images/sagemaker-inference-response.png)
+
+### Container Image in Amazon ECR
+
+![Amazon ECR Container Image](docs/images/ecr-container-image.png)
+
+### Successful CI/CD Pipeline
+
+![GitHub Actions Success](docs/images/github-actions-success.png)
+
+---
+
 ### Future Enhancements
 
 - [ ] Amazon S3-based production artifact storage

@@ -539,7 +539,7 @@ The following enhancements are planned as the project evolves toward a more prod
 - [x] GitHub Actions CI pipeline
 - [x] Automated testing on every push
 - [x] Automated Docker image build
-- [ ] Push Docker image to Amazon ECR
+- [x] Push Docker image to Amazon ECR
 - [ ] AWS deployment
 - [ ] CloudWatch logging and monitoring
 - [ ] Model and data monitoring

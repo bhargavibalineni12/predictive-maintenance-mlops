@@ -1,7 +1,7 @@
 from pathlib import Path
 import sys
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Response
 from pydantic import BaseModel
 
 
@@ -68,6 +68,34 @@ def health_check():
 
 @app.post("/predict")
 def predict_engine_condition(data: EngineData):
+
+    input_data = {
+        "Engine rpm": data.engine_rpm,
+        "Lub oil pressure": data.lub_oil_pressure,
+        "Fuel pressure": data.fuel_pressure,
+        "Coolant pressure": data.coolant_pressure,
+        "lub oil temp": data.lub_oil_temp,
+        "Coolant temp": data.coolant_temp,
+    }
+
+    result = predict_single(
+        model,
+        metadata,
+        input_data,
+    )
+
+    return result
+
+
+# SageMaker health-check endpoint
+@app.get("/ping")
+def ping():
+    return Response(status_code=200)
+
+
+# SageMaker inference endpoint
+@app.post("/invocations")
+def invocations(data: EngineData):
 
     input_data = {
         "Engine rpm": data.engine_rpm,

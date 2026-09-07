@@ -14,6 +14,8 @@ from src.models.predict import (
     predict_single,
 )
 
+from src.monitoring.prediction_logger import log_prediction
+
 
 MODEL_PATH = (
     PROJECT_ROOT
@@ -84,6 +86,14 @@ def predict_engine_condition(data: EngineData):
         input_data,
     )
 
+    log_prediction(
+        input_data=input_data,
+        prediction=result["prediction"],
+        probability=result["probability"],
+        threshold=result["threshold"],
+        model_version=metadata["model_version"],
+    )
+
     return result
 
 
@@ -110,6 +120,14 @@ def invocations(data: EngineData):
         model,
         metadata,
         input_data,
+    )
+
+    log_prediction(
+        input_data=input_data,
+        prediction=result["prediction"],
+        probability=result["probability"],
+        threshold=result["threshold"],
+        model_version=metadata["model_version"],
     )
 
     return result

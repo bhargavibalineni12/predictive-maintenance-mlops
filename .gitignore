@@ -38,3 +38,6 @@ data/external/
 # Test / coverage artifacts
 .coverage
 htmlcov/
+
+# Runtime monitoring artifacts
+artifacts/monitoring/

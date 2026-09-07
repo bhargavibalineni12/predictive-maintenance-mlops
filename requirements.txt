@@ -11,3 +11,4 @@ PyYAML
 jupyter
 fastapi
 uvicorn
+requests

@@ -15,7 +15,7 @@ The architecture is divided into four areas:
 1. **Model Development** — data validation, preprocessing, model experimentation, cross-validation, hyperparameter tuning, MLflow tracking, threshold selection, and model packaging.
 2. **CI/CD** — GitHub Actions runs automated tests, builds the Docker image, authenticates to AWS through IAM OIDC, and pushes the versioned image to Amazon ECR.
 3. **AWS Deployment & Inference** — Amazon SageMaker AI uses the ECR image to create a model and expose it through a Serverless Inference endpoint.
-4. **Future Enhancements** — monitoring, model registry, retraining, feature management, and other production capabilities are explicitly separated because they have not yet been implemented.
+4. **Monitoring & Observability** — prediction inputs and metadata are logged for monitoring, and production feature distributions are compared with the reference training distribution using PSI-based data drift detection.
 
 ---
 
@@ -771,13 +771,18 @@ predictive-maintenance-mlops/
 - [x] SageMaker Serverless deployment
 - [x] Real-time cloud inference validation
 - [x] Cloud resource cleanup after validation
+- [x] Prediction logging for inference monitoring
+- [x] PSI-based data drift detection
+- [x] Minimum production sample window for drift evaluation
+- [x] Structured JSON drift report generation
+- [x] Drift monitoring automated tests
 
 ### Future Enhancements
 
 - [ ] Amazon S3-based production artifact storage
 - [ ] SageMaker Model Registry
 - [ ] CloudWatch logging and monitoring
-- [ ] Model and data drift monitoring
+- [ ] Model performance monitoring with delayed ground-truth labels
 - [ ] Automated retraining pipeline
 - [ ] Deployment promotion/versioning strategy
 - [ ] Feature management / Feature Store where appropriate

@@ -1,21 +1,30 @@
 # Predictive Maintenance MLOps
 
-An end-to-end Machine Learning and MLOps project for **engine condition classification** using sensor measurements.
-
-This project demonstrates how a machine learning model can move from raw data through data validation, model experimentation, model selection, artifact packaging, API serving, automated testing, and Docker containerization.
+An end-to-end **Machine Learning and MLOps project** for engine condition classification using sensor measurements, covering model development, experiment tracking, automated testing, containerization, CI/CD, Amazon ECR, and deployment using Amazon SageMaker AI Serverless Inference.
 
 > **Note:** The available dataset contains independent sensor observations and a binary `Engine Condition` target. Therefore, this project performs **engine condition classification for predictive maintenance**, rather than Remaining Useful Life (RUL) or future time-to-failure prediction.
 
 ---
 
-## Project Architecture
+## System Architecture
+
+![Predictive Maintenance MLOps Architecture](docs/images/mlops-architecture.png)
+
+The architecture is divided into four areas:
+
+1. **Model Development** — data validation, preprocessing, model experimentation, cross-validation, hyperparameter tuning, MLflow tracking, threshold selection, and model packaging.
+2. **CI/CD** — GitHub Actions runs automated tests, builds the Docker image, authenticates to AWS through IAM OIDC, and pushes the versioned image to Amazon ECR.
+3. **AWS Deployment & Inference** — Amazon SageMaker AI uses the ECR image to create a model and expose it through a Serverless Inference endpoint.
+4. **Future Enhancements** — monitoring, model registry, retraining, feature management, and other production capabilities are explicitly separated because they have not yet been implemented.
+
+---
+
+## End-to-End Workflow
 
 ```text
-Engine Sensor Data
+Engine Sensor Dataset
         ↓
-Data Ingestion
-        ↓
-Data Validation
+Data Ingestion & Validation
         ↓
 Stratified Train/Test Split
         ↓
@@ -27,19 +36,27 @@ MLflow Experiment Tracking
         ↓
 Hyperparameter Tuning
         ↓
-Model Selection
+Random Forest Model Selection
         ↓
-Threshold Selection using OOF Predictions
+OOF Classification Threshold Selection
         ↓
 Final Evaluation on Untouched Test Set
         ↓
 Model + Metadata Artifacts
         ↓
-FastAPI Inference API
-        ↓
-Automated Tests
+FastAPI Inference Application
         ↓
 Docker Container
+        ↓
+GitHub Actions CI/CD
+        ↓
+Amazon ECR
+        ↓
+Amazon SageMaker Model
+        ↓
+SageMaker Serverless Endpoint
+        ↓
+Real-time Cloud Inference
 ```
 
 ---
@@ -70,13 +87,13 @@ The target contains binary values:
 1
 ```
 
-The project intentionally refers to them as class `0` and class `1` unless their physical meaning is established from authoritative dataset documentation.
+The project intentionally refers to these as class `0` and class `1` unless their physical meaning is established from authoritative dataset documentation.
 
 ---
 
 ## Data Validation
 
-Before model training, the data pipeline performs validation checks for:
+Before model training, the pipeline performs validation checks for:
 
 - Required columns
 - Missing values
@@ -84,7 +101,7 @@ Before model training, the data pipeline performs validation checks for:
 - Numerical feature types
 - Duplicate rows
 
-The raw dataset currently passes these validation checks.
+The raw dataset passes the implemented validation checks.
 
 ---
 
@@ -150,7 +167,7 @@ For each experiment, the project records:
 - ROC-AUC
 - Average Precision
 
-This provides a reproducible way to compare model experiments instead of selecting a model based on manually observed results.
+This provides a reproducible way to compare experiments instead of selecting a model based only on manually observed results.
 
 ---
 
@@ -197,10 +214,10 @@ Best cross-validation Average Precision:
 Best parameters:
 
 ```text
-n_estimators      = 200
-max_depth         = 10
-min_samples_split = 5
-min_samples_leaf  = 1
+n_estimators       = 200
+max_depth          = 10
+min_samples_split  = 5
+min_samples_leaf   = 1
 ```
 
 Best cross-validation Average Precision:
@@ -215,16 +232,16 @@ Among the tuning experiments performed, the tuned Random Forest achieved the str
 
 ## Classification Threshold Selection
 
-A classification model normally uses a probability threshold of `0.5`.
+A binary classification model commonly starts with a probability threshold of `0.5`.
 
-Instead of automatically using the default threshold, this project selects the threshold using **out-of-fold predictions from the training data**.
+Instead of automatically using the default threshold, this project selects the threshold using **out-of-fold (OOF) predictions generated from the training data**.
 
 ```text
 Training Data
      ↓
-Cross-Validated Out-of-Fold Predictions
+Cross-Validated OOF Predictions
      ↓
-Precision-Recall Curve
+Precision-Recall Evaluation
      ↓
 F1 Evaluation
      ↓
@@ -274,7 +291,7 @@ True Positives  = 2400
 
 The selected threshold provides very high recall for class `1`, but it also produces a large number of false positives.
 
-This demonstrates an important production ML consideration: **model thresholds should be selected according to business costs and operational requirements, rather than optimizing a metric without considering its consequences.**
+This demonstrates an important production ML consideration: **classification thresholds should be selected according to business costs and operational requirements rather than optimizing a metric without considering its consequences.**
 
 ---
 
@@ -307,14 +324,12 @@ This ensures that the inference application uses the same feature ordering and c
 
 ## Standalone Inference
 
-The inference layer loads the saved model and metadata without retraining the model.
-
-Prediction flow:
+The inference layer loads the saved model and metadata without retraining.
 
 ```text
 Input Sensor Measurements
         ↓
-Load Saved Model
+Load Saved Model + Metadata
         ↓
 Predict Probability
         ↓
@@ -331,7 +346,7 @@ This separates model training from production inference.
 
 The trained model is exposed through a REST API using **FastAPI**.
 
-Available endpoints:
+### Local API Endpoints
 
 ```text
 GET  /
@@ -339,45 +354,38 @@ GET  /health
 POST /predict
 ```
 
-### Health Check
+### SageMaker-Compatible Endpoints
 
 ```text
-GET /health
+GET  /ping
+POST /invocations
 ```
 
-returns the API health status and model version.
+`/ping` provides the health-check interface required by the SageMaker inference container.
 
-### Prediction Request
+`/invocations` handles inference requests when the container is hosted by SageMaker.
 
-Example:
+### Example Request
 
 ```json
 {
   "engine_rpm": 700,
-  "lub_oil_pressure": 2.493592,
-  "fuel_pressure": 11.790927,
-  "coolant_pressure": 3.178981,
-  "lub_oil_temp": 84.144163,
-  "coolant_temp": 81.632187
+  "lub_oil_pressure": 3.5,
+  "fuel_pressure": 6.0,
+  "coolant_pressure": 2.0,
+  "lub_oil_temp": 75,
+  "coolant_temp": 80
 }
 ```
 
-Example response:
+### Example Response
 
 ```json
 {
   "prediction": 1,
-  "probability": 0.6581,
-  "threshold": 0.3724
+  "probability": 0.7557877114110082,
+  "threshold": 0.3723840180220012
 }
-```
-
-FastAPI automatically provides interactive Swagger API documentation.
-
-When running locally:
-
-```text
-http://localhost:8000/docs
 ```
 
 ---
@@ -389,13 +397,13 @@ The project uses **pytest** for automated testing.
 Current tests verify:
 
 - API health endpoint
-- Valid prediction request
+- Valid prediction requests
 - Missing input field validation
 - Model inference output
 - Probability range
 - Classification threshold range
 
-Run all tests:
+Run all tests with:
 
 ```bash
 python -m pytest tests/ -v
@@ -407,49 +415,230 @@ Current test status:
 4 passed
 ```
 
+The same test suite is executed automatically by GitHub Actions.
+
 ---
 
 ## Docker Containerization
 
-The FastAPI inference application is containerized using Docker.
-
-The Docker image contains:
+The FastAPI inference application is packaged into a custom Docker image containing:
 
 ```text
 Application Code
         +
 Model Artifacts
         +
+Model Metadata
+        +
 Python Dependencies
         +
 FastAPI / Uvicorn
 ```
 
-### Build Docker Image
-
-```bash
-docker build -f docker/Dockerfile -t predictive-maintenance-api .
-```
-
-### Run Docker Container
-
-```bash
-docker run --name predictive-maintenance-container -p 8000:8000 predictive-maintenance-api
-```
-
-The container exposes the application on:
+The SageMaker-compatible container listens on:
 
 ```text
-http://localhost:8000
+Port 8080
+```
+
+### Build the Image
+
+```bash
+docker build --load -f docker/Dockerfile -t predictive-maintenance-sagemaker .
+```
+
+### Run Locally in SageMaker-Style Mode
+
+```bash
+docker run --rm -p 8080:8080 predictive-maintenance-sagemaker serve
 ```
 
 Swagger documentation:
 
 ```text
-http://localhost:8000/docs
+http://127.0.0.1:8080/docs
 ```
 
-The containerized API has been tested successfully for both health checks and model predictions.
+The container was locally validated using both:
+
+```text
+GET  /ping
+POST /invocations
+```
+
+before being deployed to AWS.
+
+---
+
+## CI/CD with GitHub Actions
+
+GitHub Actions automates testing, container creation, AWS authentication, and image publication.
+
+```text
+Git Push to main
+       ↓
+GitHub Actions
+       ↓
+Run pytest
+       ↓
+Build Docker Image
+       ↓
+Authenticate to AWS using IAM OIDC
+       ↓
+Login to Amazon ECR
+       ↓
+Tag Image with Git Commit SHA
+       ↓
+Push Image to Amazon ECR
+```
+
+### Passwordless AWS Authentication
+
+The CI/CD pipeline authenticates to AWS using **IAM OpenID Connect (OIDC)**.
+
+```text
+GitHub Actions
+       ↓
+OIDC Identity Token
+       ↓
+AWS IAM Role
+       ↓
+Temporary AWS Credentials
+       ↓
+Amazon ECR
+```
+
+This avoids storing long-lived AWS access keys in GitHub.
+
+---
+
+## Amazon ECR
+
+The inference container is stored in a private **Amazon Elastic Container Registry (ECR)** repository:
+
+```text
+predictive-maintenance-api
+```
+
+Images are tagged using their Git commit SHA.
+
+This provides traceability between:
+
+```text
+Git Commit
+    ↓
+Docker Image
+    ↓
+ECR Image
+    ↓
+SageMaker Deployment
+```
+
+---
+
+## Amazon SageMaker AI Deployment
+
+The custom inference container was successfully deployed using **Amazon SageMaker AI Serverless Inference**.
+
+### Deployment Flow
+
+```text
+Amazon ECR
+     ↓
+SageMaker Model
+     ↓
+Serverless Endpoint Configuration
+     ↓
+SageMaker Serverless Endpoint
+     ↓
+Real-time Prediction
+```
+
+The SageMaker model uses the custom Docker image stored in ECR.
+
+The trained Random Forest model and metadata are packaged directly inside the inference image, so this deployment design does not require a separate S3 model-artifact URL.
+
+### Serverless Configuration
+
+```text
+Memory size:              2 GB
+Maximum concurrency:      1
+Provisioned concurrency:  Disabled
+```
+
+Serverless inference was selected because this portfolio workload requires intermittent inference rather than a continuously provisioned inference instance.
+
+---
+
+## Real-Time Cloud Inference Validation
+
+After the endpoint reached:
+
+```text
+InService
+```
+
+the deployed model was invoked through the **SageMaker Runtime API**.
+
+### Invocation
+
+```bash
+aws sagemaker-runtime invoke-endpoint \
+  --endpoint-name predictive-maintenance-endpoint-v1 \
+  --content-type application/json \
+  --body fileb://payload.json \
+  response.json
+```
+
+SageMaker successfully routed the request to:
+
+```text
+InvokedProductionVariant: variant-name-1
+```
+
+### Cloud Prediction Response
+
+```json
+{
+  "prediction": 1,
+  "probability": 0.7557877114110082,
+  "threshold": 0.3723840180220012
+}
+```
+
+This validates the complete inference path:
+
+```text
+Client
+   ↓
+SageMaker Runtime
+   ↓
+Serverless Endpoint
+   ↓
+Custom Docker Container
+   ↓
+FastAPI /invocations
+   ↓
+Random Forest Model
+   ↓
+Stored Classification Threshold
+   ↓
+Prediction Response
+```
+
+---
+
+## AWS Cost-Control Strategy
+
+After successful cloud inference validation:
+
+- The SageMaker endpoint was deleted
+- The endpoint configuration was deleted
+- Provisioned concurrency was never enabled
+
+The SageMaker model definition and ECR image can be retained for reproducibility and future demonstrations.
+
+This demonstrates an important cloud engineering practice: **create resources for a defined workload, validate the deployment, and remove unnecessary serving resources afterward.**
 
 ---
 
@@ -457,6 +646,10 @@ The containerized API has been tested successfully for both health checks and mo
 
 ```text
 predictive-maintenance-mlops/
+│
+├── .github/
+│   └── workflows/
+│       └── ci.yml
 │
 ├── app/
 │   ├── __init__.py
@@ -473,7 +666,12 @@ predictive-maintenance-mlops/
 │       └── engine_data.csv
 │
 ├── docker/
-│   └── Dockerfile
+│   ├── Dockerfile
+│   └── serve.py
+│
+├── docs/
+│   └── images/
+│       └── mlops-architecture.png
 │
 ├── scripts/
 │   ├── run_baseline_experiments.py
@@ -507,67 +705,150 @@ predictive-maintenance-mlops/
 
 ## Technologies Used
 
-**Machine Learning**
+### Machine Learning
 
 - Python
 - Pandas
+- NumPy
 - Scikit-learn
 - XGBoost
 
-**MLOps**
+### Experiment Tracking
 
 - MLflow
-- Git
-- GitHub
-- Pytest
 
-**Model Serving**
+### Model Serving
 
 - FastAPI
 - Uvicorn
 
-**Containerization**
+### Testing
+
+- Pytest
+
+### Containerization
 
 - Docker
+
+### Version Control & CI/CD
+
+- Git
+- GitHub
+- GitHub Actions
+
+### AWS
+
+- Amazon ECR
+- Amazon SageMaker AI
+- SageMaker Serverless Inference
+- AWS IAM
+- IAM OIDC
+- AWS CloudShell
 
 ---
 
 ## MLOps Roadmap
 
-The following enhancements are planned as the project evolves toward a more production-style MLOps architecture:
+### Implemented
 
-- [x] GitHub Actions CI pipeline
-- [x] Automated testing on every push
+- [x] Data ingestion and validation
+- [x] Stratified train/test split
+- [x] Multiple model experimentation
+- [x] 5-fold cross-validation
+- [x] MLflow experiment tracking
+- [x] Hyperparameter tuning
+- [x] Training-only OOF threshold selection
+- [x] Final untouched test evaluation
+- [x] Model and metadata artifact packaging
+- [x] FastAPI inference API
+- [x] Automated pytest testing
+- [x] Docker containerization
+- [x] GitHub Actions CI
 - [x] Automated Docker image build
-- [x] Push Docker image to Amazon ECR
-- [ ] AWS deployment
-- [ ] CloudWatch logging and monitoring
-- [ ] Model and data monitoring
-- [ ] Production artifact storage and model registry
-- [ ] Automated retraining workflow
+- [x] AWS IAM OIDC authentication
+- [x] Automated image push to Amazon ECR
+- [x] SageMaker-compatible inference container
+- [x] SageMaker Serverless deployment
+- [x] Real-time cloud inference validation
+- [x] Cloud resource cleanup after validation
 
-The roadmap will be updated as each stage is implemented.
+### Future Enhancements
+
+- [ ] Amazon S3-based production artifact storage
+- [ ] SageMaker Model Registry
+- [ ] CloudWatch logging and monitoring
+- [ ] Model and data drift monitoring
+- [ ] Automated retraining pipeline
+- [ ] Deployment promotion/versioning strategy
+- [ ] Feature management / Feature Store where appropriate
+- [ ] Additional production security and governance controls
 
 ---
 
 ## Key MLOps Concepts Demonstrated
 
-This project currently demonstrates:
+This project demonstrates:
 
-- Modular ML code
+- Modular ML development
 - Data validation
-- Reproducible data splitting
+- Reproducible train/test splitting
 - Multiple model experimentation
 - Cross-validation
 - MLflow experiment tracking
 - Hyperparameter tuning
 - Leakage-aware threshold selection
+- Untouched final test evaluation
 - Model artifact packaging
 - Metadata-driven inference
 - REST API model serving
 - Automated testing
 - Docker containerization
 - Git-based version control
+- CI/CD using GitHub Actions
+- Git commit-to-container traceability
+- IAM OIDC authentication
+- Temporary AWS credentials for CI/CD
+- Amazon ECR container registry
+- Custom SageMaker inference containers
+- SageMaker Serverless Inference
+- Real-time cloud model invocation
+- Cloud resource cost-control and cleanup
+
+---
+
+## Key Learning Outcome
+
+This project demonstrates that MLOps extends beyond training a machine learning model.
+
+```text
+Data
+ ↓
+Validation
+ ↓
+Experimentation
+ ↓
+Model Selection
+ ↓
+Artifact Packaging
+ ↓
+API Serving
+ ↓
+Testing
+ ↓
+Containerization
+ ↓
+CI/CD
+ ↓
+Container Registry
+ ↓
+Cloud Deployment
+ ↓
+Inference Validation
+ ↓
+Operational Cleanup
+```
+
+The project combines **machine learning development, software engineering, CI/CD, containerization, cloud infrastructure, and model serving** into one end-to-end MLOps workflow.
 
 ---
 
